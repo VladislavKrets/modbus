@@ -13,8 +13,8 @@ void ChangeRegister::run(){
     for (qreal i = 0; !QThread::currentThread()->isInterruptionRequested(); i+=delta){
         foreach (ChangeRegisterThreadData * data, *dataList) {
             executeChangeData(data, delta, i);
-            QThread::msleep(1000);
         }
+        QThread::msleep(1000);
     }
 }
 
