@@ -62,7 +62,7 @@
      <widget class="QTextEdit" name="textEdit"/>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="graphLayout">
+     <layout class="QHBoxLayout" name="graphLayout">
       <property name="topMargin">
        <number>5</number>
       </property>
@@ -88,6 +88,7 @@
     </property>
     <addaction name="actionSerialPortSettings_2"/>
     <addaction name="actionSlaveNumberSetting"/>
+    <addaction name="signalAction"/>
    </widget>
    <addaction name="menu"/>
   </widget>
@@ -113,6 +114,11 @@
    </property>
    <property name="text">
     <string>Выбор номера расширения...</string>
+   </property>
+  </action>
+  <action name="signalAction">
+   <property name="text">
+    <string>Сигнал</string>
    </property>
   </action>
  </widget>

@@ -11,6 +11,7 @@
 #include <QTextStream>
 #include <QApplication>
 #include <QModbusRtuSerialSlave>
+#include "signaldialog.h"
 
 const QString strConnect="Установить соединение";
 const QString strDisconnect="Разорвать соединение";
@@ -25,6 +26,26 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->connectButton->setText(strConnect);
     ui->textEdit->setReadOnly(true);
     slaveDevice = new QModbusRtuSerialSlaveLogger(this);
+    reg.insert(QModbusDataUnit::Coils, { QModbusDataUnit::Coils, 0, 10000 });
+    reg.insert(QModbusDataUnit::DiscreteInputs, { QModbusDataUnit::DiscreteInputs, 0, 10000 });
+    reg.insert(QModbusDataUnit::InputRegisters, { QModbusDataUnit::InputRegisters, 0, 10000 });
+    reg.insert(QModbusDataUnit::HoldingRegisters, { QModbusDataUnit::HoldingRegisters, 0, 10000 });
+    slaveDevice->setMap(reg);
+
+    QChartView * chartView = new QChartView(this);
+    chartView->setVisible(false);
+    QChartView * chartView2 = new QChartView(this);
+    chartView2->setVisible(false);
+    chartDataList->append(new ChartData(chartView, new SignalCoefficientData("Синусоида", 1, QModbusDataUnit::InputRegisters, 1, 1, 0, 0)));
+    chartDataList->append(new ChartData(chartView2, new SignalCoefficientData("Меандр", 3, QModbusDataUnit::InputRegisters, 1, 1, 0, 0)));
+
+    connect(slaveDevice, &QModbusServer::dataWritten,
+            this, &MainWindow::updateWidgets);
+    connect(slaveDevice, &QModbusServer::stateChanged,
+            this, &MainWindow::onStateChanged);
+    connect(slaveDevice, &QModbusServer::errorOccurred,
+            this, &MainWindow::handleDeviceError);
+    connect(slaveDevice, &QModbusRtuSerialSlaveLogger::logRequest, this, &MainWindow::handleDeviceLog);
 }
 
 MainWindow::~MainWindow()
@@ -48,7 +69,7 @@ void MainWindow::on_settings_dialog_accept(PortInfo * portInfo){
 
 void MainWindow::on_actionSerialPortSettings_2_triggered()
 {
-    SerialPortSettingsDialog* dialog = new SerialPortSettingsDialog(this);
+    SerialPortSettingsDialog* dialog = new SerialPortSettingsDialog(this, portInfo);
     connect(dialog, &SerialPortSettingsDialog::getFilledData, this, &MainWindow::on_settings_dialog_accept);
     dialog->exec();
 }
@@ -74,50 +95,62 @@ void MainWindow::on_connectButton_clicked()
 }
 void MainWindow::modbusDisconnect(){
     slaveDevice->disconnectDevice();
-    if (changeRegisterThread) {
-        changeRegisterThread->requestInterruption();
-    }
+    changeRegisterThread->requestInterruption();
 }
 void MainWindow::modbusConnect()
 {
-    reg.insert(QModbusDataUnit::Coils, { QModbusDataUnit::Coils, 0, 10000 });
-    reg.insert(QModbusDataUnit::DiscreteInputs, { QModbusDataUnit::DiscreteInputs, 0, 10000 });
-    reg.insert(QModbusDataUnit::InputRegisters, { QModbusDataUnit::InputRegisters, 0, 10000 });
-    reg.insert(QModbusDataUnit::HoldingRegisters, { QModbusDataUnit::HoldingRegisters, 0, 10000 });
-    slaveDevice->setMap(reg);
-    connect(slaveDevice, &QModbusServer::dataWritten,
-            this, &MainWindow::updateWidgets);
-    connect(slaveDevice, &QModbusServer::stateChanged,
-            this, &MainWindow::onStateChanged);
-    connect(slaveDevice, &QModbusServer::errorOccurred,
-            this, &MainWindow::handleDeviceError);
-    connect(slaveDevice, &QModbusRtuSerialSlaveLogger::logRequest, this, &MainWindow::handleDeviceLog);
     bool connected = slaveDevice->connectDevice();
-
     isConnected = connected;
     if (!connected) {
         statusBar()->showMessage(tr("Connect failed: ") + slaveDevice->errorString(), 5000);
     } else {
         statusBar()->showMessage(tr("Connected"));
-        QChartView * qChartView = new QChartView(this);
-        QLineSeries * series = new QLineSeries();
-        chart = new QChart();
-        chart->addSeries(series);
-        QValueAxis *axisY = new QValueAxis();
-        axisY->setRange(-1, 1);
-        chart->addAxis(axisY, Qt::AlignLeft);
-        QValueAxis *axisX = new QValueAxis();
-        axisX->setRange(0, 4);
-        chart->addAxis(axisX, Qt::AlignBottom);
-        series->attachAxis(axisX);
-        series->attachAxis(axisY);
-        chart->legend()->hide();
-        qChartView->setChart(chart);
-        ui->graphLayout->addWidget(qChartView);
-        changeRegisterThread = new ChangeRegister(this->reg, this->slaveDevice, series, chart);
+
+        QList<ChangeRegisterThreadData *> * dataList = new QList<ChangeRegisterThreadData *>();
+
+        foreach(ChartData * chartData, *chartDataList){
+            dataList->append(addChart(chartData));
+        }
+
+        changeRegisterThread = new ChangeRegister(this->reg,
+                                                  this->slaveDevice, dataList);
         connect(changeRegisterThread, &ChangeRegister::finished, changeRegisterThread, &ChangeRegister::deleteLater);
         changeRegisterThread->start();
     }
+}
+
+ChangeRegisterThreadData * MainWindow::addChart(ChartData * chartData){
+    QChartView * qChartView = chartData->getQChartView();
+    if(!qChartView) qChartView = new QChartView(this);
+    qChartView->setVisible(true);
+    SignalCoefficientData * signalCoefficientData = chartData->getSignalCoefficientData();
+    QChart * chart;
+    if (qChartView->chart()) chart = new QChart();
+    else chart = qChartView->chart();
+    QList<QAbstractSeries *> seriesData = chart->series();
+    foreach (QAbstractSeries * seriesEntity, seriesData){
+        chart->removeSeries(seriesEntity);
+        delete seriesEntity;
+    }
+    QList<QAbstractAxis *> axes = chart->axes();
+    foreach (QAbstractAxis * axis, axes) {
+        chart->removeAxis(axis);
+        delete axis;
+    }
+
+    QValueAxis * axisY = new QValueAxis();
+    QValueAxis * axisX = new QValueAxis();
+    QLineSeries * series = new QLineSeries();
+
+    chart->addSeries(series);
+    chart->addAxis(axisY, Qt::AlignLeft);
+    chart->addAxis(axisX, Qt::AlignBottom);
+    chart->legend()->hide();
+    qChartView->setChart(chart);
+    ui->graphLayout->addWidget(qChartView);
+    series->attachAxis(axisX);
+    series->attachAxis(axisY);
+    return new ChangeRegisterThreadData(series, signalCoefficientData, axisX, axisY);
 }
 
 void MainWindow::handleDeviceLog(QString logLine){
@@ -171,4 +204,16 @@ void MainWindow::updateWidgets(QModbusDataUnit::RegisterType table, int address,
     }
 }
 
+void MainWindow::on_signal_dialog_accept(SignalCoefficientData * signalCoefficientData){
+
+    delete this->chartDataList->at(0)->getSignalCoefficientData();
+    this->chartDataList->at(0)->setSignalCoefficientData(signalCoefficientData);
+}
+
+void MainWindow::on_signalAction_triggered()
+{
+    SignalDialog * dialog = new SignalDialog(this, chartDataList);
+    connect(dialog, &SignalDialog::getFilledData, this, &MainWindow::on_signal_dialog_accept);
+    dialog->exec();
+}
 

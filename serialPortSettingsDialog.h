@@ -79,7 +79,7 @@ class SerialPortSettingsDialog : public QDialog
 
 public:
     /// Конструктор. Принимает указатель на структуру настроек последовательного порта.
-    explicit SerialPortSettingsDialog(QWidget *parent = 0);
+    explicit SerialPortSettingsDialog(QWidget *parent = 0, PortInfo * portInfo = nullptr);
     /// Деструктор.
     ~SerialPortSettingsDialog();
 

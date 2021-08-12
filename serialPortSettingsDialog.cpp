@@ -5,7 +5,7 @@
 #include <QSerialPortInfo>
 
 
-SerialPortSettingsDialog::SerialPortSettingsDialog(QWidget *parent) : QDialog(parent), ui(new Ui::SerialPortSettingsDialog)
+SerialPortSettingsDialog::SerialPortSettingsDialog(QWidget *parent, PortInfo * portInfo) : QDialog(parent), ui(new Ui::SerialPortSettingsDialog)
 {
     ui->setupUi(this);
 
@@ -14,8 +14,9 @@ SerialPortSettingsDialog::SerialPortSettingsDialog(QWidget *parent) : QDialog(pa
 
     QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
 
+    ui->nameComboBox->addItem("", "");
     foreach (QSerialPortInfo port, ports) {
-        ui->nameComboBox->addItem(port.portName());
+        ui->nameComboBox->addItem(port.portName(), port.systemLocation());
     }
 
     QString str="";
@@ -48,12 +49,26 @@ SerialPortSettingsDialog::SerialPortSettingsDialog(QWidget *parent) : QDialog(pa
     ui->stopBitsCombo->addItem(tr("1,5"), OneAndHalfStop);
     ui->stopBitsCombo->addItem(tr("2"), TwoStop);
 
+    if (portInfo) {
+        int index = ui->nameComboBox->findData(portInfo->getName());
+        if (index != -1) ui->nameComboBox->setCurrentIndex(index);
+        else {
+            ui->nameComboBox->setCurrentIndex(0);
+            ui->nameComboBox->setCurrentText(portInfo->getName());
+        }
+        ui->baudrateCombo->setCurrentIndex(ui->baudrateCombo->findData(portInfo->getBaudRate()));
+        ui->dataBitsCombo->setCurrentIndex(ui->dataBitsCombo->findData(portInfo->getDataBits()));
+        ui->parityCombo->setCurrentIndex(ui->parityCombo->findData(portInfo->getParityControl()));
+        ui->flcntrlCombo->setCurrentIndex(ui->flcntrlCombo->findData(portInfo->getFlowControl()));
+        ui->stopBitsCombo->setCurrentIndex(ui->stopBitsCombo->findData(portInfo->getStopBitsCount()));
+    }
+
     connect(ui->buttonBox->button(QDialogButtonBox::Ok), SIGNAL(clicked()), this, SLOT(okAccept()));
     connect(ui->buttonBox->button(QDialogButtonBox::Cancel), SIGNAL(clicked()), this, SLOT(reject()));
 }
 
 void SerialPortSettingsDialog::okAccept(){
-    QString name = ui->nameComboBox->currentText();
+    QString name = ui->nameComboBox->currentData().toString() == "" ? ui->nameComboBox->currentText() : ui->nameComboBox->currentData().toString();
     QString baudRate = ui->baudrateCombo->currentData().toString();
     QString dataBits = ui->dataBitsCombo->currentData().toString();
     QString parity = ui->parityCombo->currentData().toString();

@@ -17,25 +17,36 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     changeregister.cpp \
+    changeregisterthreaddata.cpp \
+    chartdata.cpp \
     dialogsettings.cpp \
     main.cpp \
     mainwindow.cpp \
     portinfo.cpp \
     qmodbusrtuserialslavelogger.cpp \
-    serialPortSettingsDialog.cpp
+    serialPortSettingsDialog.cpp \
+    signalcoefficientdata.cpp \
+    signaldialog.cpp \
+    signaldialogwidget.cpp
 
 HEADERS += \
     changeregister.h \
+    changeregisterthreaddata.h \
+    chartdata.h \
     dialogsettings.h \
     mainwindow.h \
     portinfo.h \
     qmodbusrtuserialslavelogger.h \
-    serialPortSettingsDialog.h
+    serialPortSettingsDialog.h \
+    signalcoefficientdata.h \
+    signaldialog.h \
+    signaldialogwidget.h
 
 FORMS += \
     dialogsettings.ui \
     mainwindow.ui \
-    serialPortSettingsDialog.ui
+    serialPortSettingsDialog.ui \
+    signaldialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
