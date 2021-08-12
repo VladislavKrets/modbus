@@ -29,15 +29,26 @@ SignalDialog::SignalDialog(QWidget *parent, QList<ChartData *> * chartDataList) 
         ui->signalTab->addTab(signalDialogWidget, QString("Сигнал %1").arg(i + 1));
     }
     QToolButton * tb = new QToolButton();
-    tb->setStyleSheet("border:none;background:none");
+    tb->setStyleSheet("border:none;background:none;");
     tb->setText("+");
-    tb->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Maximum);
     ui->signalTab->addTab(new QWidget(), QString());
     ui->signalTab->setTabEnabled(ui->signalTab->count() - 1, false);
     ui->signalTab->tabBar()->setTabButton(ui->signalTab->count() - 1, QTabBar::RightSide, tb);
+    if (chartDataList && chartDataList->size() < 2) ui->deleteButton->setVisible(false);
     connect(ui->buttonBox->button(QDialogButtonBox::Ok), SIGNAL(clicked()), this, SLOT(okAccept()));
     connect(ui->buttonBox->button(QDialogButtonBox::Cancel), SIGNAL(clicked()), this, SLOT(reject()));
     connect(tb, &QToolButton::clicked, this, &SignalDialog::addSignal);
+    connect(ui->deleteButton, &QPushButton::clicked, this, &SignalDialog::deleteSignal);
+}
+
+void SignalDialog::deleteSignal(){
+    int index = ui->signalTab->currentIndex();
+    ui->signalTab->removeTab(index);
+    if (index != 0) ui->signalTab->setCurrentIndex(index - 1);
+    ChartData * chartData = chartDataList->at(index);
+    delete chartData;
+    chartDataList->removeAt(index);
+    if (chartDataList->size() < 2) ui->deleteButton->setVisible(false);
 }
 
 void SignalDialog::addSignal(){
@@ -57,6 +68,7 @@ void SignalDialog::addSignal(){
     if (signalCoefficientData->getFunction() == "Синусоида") signalDialogWidget->functionLabel->setText("A*sin(B*x+C)+D");
     else signalDialogWidget->functionLabel->setText("sgn(A*sin(B*x+C)+D)");
     ui->signalTab->insertTab(ui->signalTab->count() - 1, signalDialogWidget, QString("Сигнал %1").arg(chartDataList->size()));
+    if (chartDataList && chartDataList->size() >= 2) ui->deleteButton->setVisible(true);
 }
 
 void SignalDialog::okAccept(){

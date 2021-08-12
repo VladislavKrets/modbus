@@ -21,6 +21,7 @@ signals:
 public slots:
     void okAccept();
     void addSignal();
+    void deleteSignal();
 private:
     Ui::SignalDialog *ui;
     QList<ChartData *> * chartDataList;
